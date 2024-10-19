@@ -3,22 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select Columns</title>
+    <title>Select Columns for Preprocessing</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #e8f0fe;
+            color: #333;
+        }
+        h1, h3 {
+            color: #2c3e50;
+        }
+        form {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .error {
+            color: red;
+            display: none; /* Hidden by default */
+        }
+        .checkbox-container {
+            display: flex;
+            flex-direction: column;
+        }
+        .checkbox-container label {
+            margin: 5px 0;
+        }
+    </style>
+    <script>
+        function validateForm() {
+            const checkboxes = document.querySelectorAll('input[name="features"]:checked');
+            const errorMessage = document.getElementById('error-message');
+            if (checkboxes.length === 0) {
+                errorMessage.style.display = 'block';
+                return false; // Prevent form submission
+            } else {
+                errorMessage.style.display = 'none';
+                return true; // Allow form submission
+            }
+        }
+    </script>
 </head>
 <body>
-    <h1>Select Features and Target Column</h1>
-    <form action="/predict" method="POST">
-        <h3>Select feature columns:</h3>
-        {% for column in columns %}
-            <input type="checkbox" name="features" value="{{ column }}"> {{ column }}<br>
-        {% endfor %}
+    <h1>Select Features and Target Column for Data Preprocessing</h1>
+    <p>Please select at least one feature column, the target column, and any preprocessing options you want to apply.</p>
 
-        <h3>Select target column:</h3>
-        <select name="target">
+    <form action="/predict" method="POST" onsubmit="return validateForm()">
+        <h3>Select Feature Columns:</h3>
+        <div class="checkbox-container">
+            {% for column in columns %}
+                <label>
+                    <input type="checkbox" name="features" value="{{ column }}"> {{ column }}
+                </label>
+            {% endfor %}
+        </div>
+
+        <div id="error-message" class="error">Please select at least one feature column.</div>
+
+        <h3>Select Target Column:</h3>
+        <select name="target" required>
             {% for column in columns %}
                 <option value="{{ column }}">{{ column }}</option>
             {% endfor %}
         </select>
+
+        <h3>Data Preprocessing Options:</h3>
+        <label>
+            <input type="checkbox" name="remove_duplicates"> Remove Duplicate Rows
+        </label><br>
+
+        <label for="missing_values">Handle Missing Values:</label>
+        <select name="missing_values">
+            <option value="none">None</option>
+            <option value="drop">Drop Rows with Missing Values</option>
+            <option value="fill_mean">Fill with Mean</option>
+            <option value="fill_median">Fill with Median</option>
+            <option value="fill_mode">Fill with Mode</option>
+        </select>
+        <br><br>
 
         <h3>Select Hyperparameters:</h3>
         <label for="solver">Solver:</label>
@@ -29,9 +105,13 @@
         </select>
         <br>
         <label for="max_iter">Max Iterations:</label>
-        <input type="number" name="max_iter" value="100">
+        <input type="number" name="max_iter" value="100" min="1" required>
         <br><br>
+
         <button type="submit">Run Logistic Regression</button>
     </form>
+
+    <br>
+    <a href="/">Upload a new file</a>
 </body>
 </html>
