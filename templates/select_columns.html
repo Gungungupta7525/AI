@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select Columns for Preprocessing</title>
+    <title>Data Overview & Preprocessing</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -20,6 +20,30 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+        .data-overview {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        .data-overview table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            overflow-x: auto;  /* This will enable horizontal scrolling */
+            display: block;    /* Make the table scrollable */
+        }
+        .data-overview table, th, td {
+            border: 1px solid #ddd;
+        }
+        .data-overview th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        .data-overview th {
+            background-color: #f2f2f2;
+        }
         button {
             background-color: #3498db;
             color: white;
@@ -32,16 +56,16 @@
         button:hover {
             background-color: #2980b9;
         }
-        .error {
-            color: red;
-            display: none; /* Hidden by default */
-        }
         .checkbox-container {
             display: flex;
             flex-direction: column;
         }
         .checkbox-container label {
             margin: 5px 0;
+        }
+        .error {
+            color: red;
+            display: none; /* Hidden by default */
         }
     </style>
     <script>
@@ -59,9 +83,77 @@
     </script>
 </head>
 <body>
-    <h1>Select Features and Target Column for Data Preprocessing</h1>
-    <p>Please select at least one feature column, the target column, and any preprocessing options you want to apply.</p>
+    <h1>Data Overview and Preprocessing</h1>
+    <p>Below is a preview of your dataset. Select the features, target column, and preprocessing options.</p>
 
+    <!-- Data Overview Section -->
+    <div class="data-overview">
+        <h3>Dataset Overview</h3>
+        <p><strong>Rows:</strong> {{ num_rows }} | <strong>Columns:</strong> {{ num_columns }}</p>
+
+        <h4>First 5 Rows of Data:</h4>
+        <table>
+            <thead>
+                <tr>
+                    {% for col in columns %}
+                        <th>{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in head_data %}
+                    <tr>
+                        {% for value in row %}
+                            <td>{{ value }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h4>Column Statistics:</h4>
+<table>
+    <thead>
+        <tr>
+            <th>Column</th>
+            <th>Data Type</th>
+            <th>Null Values</th>
+            <th>Mean</th>
+            <th>Standard Deviation</th>
+            <th>Min</th>
+            <th>25%</th>
+            <th>50%</th>
+            <th>75%</th>
+            <th>Max</th>
+            <th>Unique</th>
+            <th>Top</th>
+            <th>Frequency</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for col, stats in column_stats.items() %}
+            <tr>
+                <td>{{ col }}</td>
+                <td>{{ stats['data_type'] }}</td>
+                <td>{{ stats['null_count'] }}</td>
+                <td>{{ stats['mean'] if stats['mean'] is not none else 'N/A' }}</td>
+                <td>{{ stats['std'] if stats['std'] is not none else 'N/A' }}</td>
+                <td>{{ stats['min'] if stats['min'] is not none else 'N/A' }}</td>
+                <td>{{ stats['25%'] if stats['25%'] is not none else 'N/A' }}</td>
+                <td>{{ stats['50%'] if stats['50%'] is not none else 'N/A' }}</td>
+                <td>{{ stats['75%'] if stats['75%'] is not none else 'N/A' }}</td>
+                <td>{{ stats['max'] if stats['max'] is not none else 'N/A' }}</td>
+                <td>{{ stats['unique'] if stats['unique'] is not none else 'N/A' }}</td>
+                <td>{{ stats['top'] if stats['top'] is not none else 'N/A' }}</td>
+                <td>{{ stats['freq'] if stats['freq'] is not none else 'N/A' }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+    </div>
+
+    <!-- Preprocessing Options -->
     <form action="/predict" method="POST" onsubmit="return validateForm()">
         <h3>Select Feature Columns:</h3>
         <div class="checkbox-container">
