@@ -152,6 +152,16 @@
 </table>
 
     </div>
+<!-- Column-wise Graphs Section -->
+<div class="data-overview">
+    <h3>Graphs for Numeric Columns</h3>
+    {% for plot in plot_paths %}
+        <div style="margin-bottom: 30px;">
+            <h4>{{ plot.split('_')[0] }} - {{ plot.split('_')[1].split('.')[0]|capitalize }}</h4>
+            <img src="{{ url_for('static', filename=plot) }}" width="500">
+        </div>
+    {% endfor %}
+</div>
 
     <!-- Preprocessing Options -->
     <form action="/predict" method="POST" onsubmit="return validateForm()">
