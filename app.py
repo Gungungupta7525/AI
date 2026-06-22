@@ -21,17 +21,22 @@ ALLOWED_EXTENSIONS = {'csv'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# ------------------ HOME ------------------
 @app.route('/')
 def index():
     return render_template('index.html')
 
+# ------------------ UPLOAD ------------------
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'datafile' not in request.files:
         return "No file part"
+
     file = request.files['datafile']
+
     if file.filename == '':
         return "No selected file"
+
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -39,109 +44,123 @@ def upload_file():
 
         df = pd.read_csv(filepath)
 
-        # Head & stats
+        # Dataset info
         head_data = df.head().values.tolist()
         num_rows, num_columns = df.shape
+
         column_stats = df.describe(include='all').transpose()
         column_stats['null_count'] = df.isnull().sum()
         column_stats['data_type'] = df.dtypes
         column_stats_dict = column_stats.to_dict(orient='index')
 
-        # Plot graphs for numeric columns
-              # Plot graphs for numeric columns
-        plot_paths = []
-        for column in df.select_dtypes(include=['number']).columns:
-            # Histogram
-            plt.figure()
-            df[column].plot(kind='hist', title=f"{column} - Histogram")
-            hist_file = f"{column}_hist.png"
-            hist_path = os.path.join(STATIC_FOLDER, hist_file)
-            plt.savefig(hist_path)
-            plt.close()
-            plot_paths.append(hist_file)
-
-            # Line Plot
-            plt.figure()
-            df[column].plot(kind='line', title=f"{column} - Line Plot")
-            line_file = f"{column}_line.png"
-            line_path = os.path.join(STATIC_FOLDER, line_file)
-            plt.savefig(line_path)
-            plt.close()
-            plot_paths.append(line_file)
-
-            # Boxplot
-            plt.figure()
-            df.boxplot(column=column)
-            plt.title(f"{column} - Boxplot")
-            box_file = f"{column}_box.png"
-            box_path = os.path.join(STATIC_FOLDER, box_file)
-            plt.savefig(box_path)
-            plt.close()
-            plot_paths.append(box_file)
-
+        # Only numeric columns for graph dropdown
+        numeric_columns = df.select_dtypes(include=['number']).columns.tolist()
 
         return render_template('select_columns.html',
                                columns=df.columns,
+                               numeric_columns=numeric_columns,
                                head_data=head_data,
                                num_rows=num_rows,
                                num_columns=num_columns,
                                column_stats=column_stats_dict,
-                               plot_paths=plot_paths)
-    else:
-        return "Invalid file type. Please upload a CSV file."
+                               filename=filename)
 
+# ------------------ GRAPH PLOTTING ------------------
+@app.route('/plot', methods=['POST'])
+def plot_graph():
+    filename = request.form['filename']
+    column = request.form['column']
+    graph_type = request.form['graph_type']
+
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    df = pd.read_csv(filepath)
+
+    plt.figure()
+
+    if graph_type == 'hist':
+        df[column].plot(kind='hist')
+        plt.title(f"{column} - Histogram")
+
+    elif graph_type == 'line':
+        df[column].plot(kind='line')
+        plt.title(f"{column} - Line Plot")
+
+    elif graph_type == 'box':
+        df.boxplot(column=column)
+        plt.title(f"{column} - Box Plot")
+
+    plot_filename = f"{column}_{graph_type}.png"
+    plot_path = os.path.join(STATIC_FOLDER, plot_filename)
+
+    plt.savefig(plot_path)
+    plt.close()
+
+    return render_template('plot_result.html',
+                           plot=plot_filename,
+                           filename=filename)
+
+# ------------------ MODEL TRAINING ------------------
 @app.route('/predict', methods=['POST'])
 def predict():
     filename = request.form['filename']
     data = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
     features = request.form.getlist('features')
     target = request.form['target']
 
     if not all(col in data.columns for col in features):
-        return "One or more selected features are not in the dataset."
+        return "Invalid feature selection"
+
     if target not in data.columns:
-        return "The selected target column is not in the dataset."
+        return "Invalid target column"
 
-    missing_values_option = request.form['missing_values']
-    if missing_values_option == 'drop':
+    # Handle missing values
+    option = request.form['missing_values']
+
+    if option == 'drop':
         data.dropna(subset=features + [target], inplace=True)
-    elif missing_values_option == 'fill_mean':
-        data[features] = data[features].fillna(data[features].mean())
-    elif missing_values_option == 'fill_median':
-        data[features] = data[features].fillna(data[features].median())
-    elif missing_values_option == 'fill_mode':
-        for feature in features:
-            data[feature] = data[feature].fillna(data[feature].mode()[0])
 
+    elif option == 'fill_mean':
+        data[features] = data[features].fillna(data[features].mean())
+
+    elif option == 'fill_median':
+        data[features] = data[features].fillna(data[features].median())
+
+    elif option == 'fill_mode':
+        for col in features:
+            data[col] = data[col].fillna(data[col].mode()[0])
+
+    # Remove duplicates
     if 'remove_duplicates' in request.form:
         data.drop_duplicates(inplace=True)
 
-    X = data[features]
     y = data[target]
 
-    categorical_columns = [col for col in features if data[col].dtype == 'object']
-    if categorical_columns:
-        from sklearn.preprocessing import OneHotEncoder
-        from sklearn.compose import ColumnTransformer
-        from sklearn.pipeline import Pipeline
+    # -------- TEXT HANDLING (FIXED) --------
+    from sklearn.feature_extraction.text import TfidfVectorizer
 
-        preprocessor = ColumnTransformer(
-            transformers=[('cat', OneHotEncoder(), categorical_columns)],
-            remainder='passthrough'
-        )
-        model_pipeline = Pipeline(steps=[
-            ('preprocessor', preprocessor),
-            ('classifier', LogisticRegression(solver=request.form['solver'], max_iter=int(request.form['max_iter'])))
-        ])
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-        model_pipeline.fit(X_train, y_train)
-        predictions = model_pipeline.predict(X_test)
+    if any(data[col].dtype == 'object' for col in features):
+        text_data = data[features].astype(str).agg(" ".join, axis=1)
+        vectorizer = TfidfVectorizer(max_features=5000)
+        X = vectorizer.fit_transform(text_data)
     else:
-        model = LogisticRegression(solver=request.form['solver'], max_iter=int(request.form['max_iter']))
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-        model.fit(X_train, y_train)
-        predictions = model.predict(X_test)
+        X = data[features]
 
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    # Model
+    model = LogisticRegression(
+        solver=request.form['solver'],
+        max_iter=int(request.form['max_iter'])
+    )
+
+    model.fit(X_train, y_train)
+    predictions = model.predict(X_test)
+
+    # Metrics
     accuracy = accuracy_score(y_test, predictions)
     precision = precision_score(y_test, predictions, average='weighted')
     recall = recall_score(y_test, predictions, average='weighted')
@@ -154,5 +173,6 @@ def predict():
                            recall=recall,
                            f1_score=f1)
 
+# ------------------ RUN ------------------
 if __name__ == '__main__':
     app.run(debug=True)
