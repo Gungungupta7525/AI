@@ -67,37 +67,35 @@ def upload_file():
 
 # ------------------ GRAPH PLOTTING ------------------
 @app.route('/plot', methods=['POST'])
-def plot_graph():
+def plot():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import os
+
     filename = request.form['filename']
     column = request.form['column']
     graph_type = request.form['graph_type']
 
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    df = pd.read_csv(filepath)
+    df = pd.read_csv(os.path.join('uploads', filename))
 
     plt.figure()
 
     if graph_type == 'hist':
-        df[column].plot(kind='hist')
-        plt.title(f"{column} - Histogram")
-
+        df[column].hist()
     elif graph_type == 'line':
-        df[column].plot(kind='line')
-        plt.title(f"{column} - Line Plot")
-
+        df[column].plot()
     elif graph_type == 'box':
         df.boxplot(column=column)
-        plt.title(f"{column} - Box Plot")
 
-    plot_filename = f"{column}_{graph_type}.png"
-    plot_path = os.path.join(STATIC_FOLDER, plot_filename)
-
+    plot_path = f"static/plot.png"
     plt.savefig(plot_path)
     plt.close()
 
-    return render_template('plot_result.html',
-                           plot=plot_filename,
-                           filename=filename)
+    return render_template('select_columns.html',
+                           columns=df.columns,
+                           numeric_columns=df.select_dtypes(include=['number']).columns,
+                           filename=filename,
+                           plot_url=plot_path)
 
 # ------------------ MODEL TRAINING ------------------
 @app.route('/predict', methods=['POST'])

@@ -153,7 +153,7 @@
 
     </div>
 <!-- Column-wise Graphs Section -->
-<div class="data-overview">
+<!--  <div class="data-overview">
     <h3>Graphs for Numeric Columns</h3>
     {% for plot in plot_paths %}
         <div style="margin-bottom: 30px;">
@@ -161,6 +161,39 @@
             <img src="{{ url_for('static', filename=plot) }}" width="500">
         </div>
     {% endfor %}
+</div> -->
+<div class="data-overview">
+    <h3>📊 Generate Graph</h3>
+
+    <form action="/plot" method="post">
+
+        <input type="hidden" name="filename" value="{{ filename }}">
+
+        <label>Select Column:</label>
+        <select name="column" required>
+            {% for col in numeric_columns %}
+                <option value="{{ col }}">{{ col }}</option>
+            {% endfor %}
+        </select>
+
+        <br><br>
+
+        <label>Select Graph Type:</label>
+        <select name="graph_type">
+            <option value="hist">Histogram</option>
+            <option value="line">Line Plot</option>
+            <option value="box">Box Plot</option>
+        </select>
+
+        <br><br>
+
+        <button type="submit">Generate Graph</button>
+    </form>
+
+    {% if plot_url %}
+        <h4>Generated Graph:</h4>
+        <img src="{{ plot_url }}" width="500">
+    {% endif %}
 </div>
 
     <!-- Preprocessing Options -->
